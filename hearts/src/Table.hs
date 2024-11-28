@@ -1,5 +1,5 @@
 module Table(TableState, emptyTableState,
-            -- runTable
+             runTable
             )
 where
 
@@ -7,6 +7,7 @@ import qualified Data.Foldable as Foldable
 
 import qualified Data.Set as Set
 import Data.Set (Set)
+import Data.Tuple(swap)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map, (!))
@@ -219,3 +220,20 @@ tableProcessEvent (TrickTaken player trick) state =
   }
 tableProcessEvent (IllegalCardAttempted player card) state = state
 tableProcessEvent (GameEnded player) state = state
+
+
+runTable (IsValidCard player card callback) (state, revents) =
+  let valid = playValid state player card
+  in runTable (callback valid) (state, revents)
+runTable (TrickTakenBy callback) (state, revents) =
+  runTable (callback (fmap swap(turnOverTrick state))) (state, revents)
+runTable (GetNextPlayer player callback) (state, revents) =
+  runTable (callback (playerAfter state player)) (state, revents)
+runTable (IsGameFinished callback) (state, revents) =
+  runTable (callback (gameOver state)) (state, revents)
+
+runTable (Return result) (state, revents) = (Right result, state, reverse revents)
+runTable (RecordEvent event callback) (state, revents) =
+  runTable (callback ()) (tableProcessEvent event state, event : revents)
+runTable (GetCommand callback) (state, revents) =
+  (Left callback, state, reverse revents)
